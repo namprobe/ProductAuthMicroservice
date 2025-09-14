@@ -1,0 +1,595 @@
+{
+	"info": {
+		"_postman_id": "12345678-1234-1234-1234-123456789012",
+		"name": "ProductAuth Microservice API",
+		"description": "Complete API collection for ProductAuth Microservice system including Authentication, Product Management, and Category Management",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "12345678"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Login CMS",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Save access token to environment variable",
+									"if (pm.response.code === 200) {",
+									"    var responseJson = pm.response.json();",
+									"    if (responseJson.isSuccess && responseJson.data && responseJson.data.accessToken) {",
+									"        pm.environment.set('access_token', responseJson.data.accessToken);",
+									"        pm.environment.set('refresh_token', responseJson.data.refreshToken);",
+									"        console.log('Access token saved to environment');",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"admin@productauth.com\",\n  \"password\": \"Admin@123\",\n  \"grantType\": 0\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/cms/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"cms",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login to the CMS system with admin credentials. This will return an access token that can be used for authenticated requests."
+					},
+					"response": []
+				},
+				{
+					"name": "Logout CMS",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/cms/auth/logout",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"cms",
+								"auth",
+								"logout"
+							]
+						},
+						"description": "Logout from the CMS system. This will invalidate the current access token."
+					},
+					"response": []
+				}
+			],
+			"description": "Authentication endpoints for CMS system"
+		},
+		{
+			"name": "Products",
+			"item": [
+				{
+					"name": "Get All Products",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/cms/products?page=1&pageSize=10&search=&categoryId=&minPrice=&maxPrice=&isPreOrder=&inStock=&sortBy=name&isAscending=true",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"cms",
+								"products"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number (default: 1)"
+								},
+								{
+									"key": "pageSize",
+									"value": "10",
+									"description": "Page size (default: 10, max: 100)"
+								},
+								{
+									"key": "search",
+									"value": "",
+									"description": "Search term for product name or description"
+								},
+								{
+									"key": "categoryId",
+									"value": "",
+									"description": "Filter by category ID"
+								},
+								{
+									"key": "minPrice",
+									"value": "",
+									"description": "Minimum price filter"
+								},
+								{
+									"key": "maxPrice",
+									"value": "",
+									"description": "Maximum price filter"
+								},
+								{
+									"key": "isPreOrder",
+									"value": "",
+									"description": "Filter by pre-order status"
+								},
+								{
+									"key": "inStock",
+									"value": "",
+									"description": "Filter by stock availability"
+								},
+								{
+									"key": "sortBy",
+									"value": "name",
+									"description": "Sort field (name, price, createdAt, updatedAt)"
+								},
+								{
+									"key": "isAscending",
+									"value": "true",
+									"description": "Sort order (true for ascending)"
+								}
+							]
+						},
+						"description": "Get all products with pagination, filtering, and sorting options"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Product by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/cms/products/{{product_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"cms",
+								"products",
+								"{{product_id}}"
+							]
+						},
+						"description": "Get a specific product by its ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Product",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"iPhone 15 Pro\",\n  \"description\": \"Latest iPhone with advanced features\",\n  \"price\": 999.99,\n  \"discount_price\": 899.99,\n  \"stock_quantity\": 100,\n  \"category_id\": \"{{category_id}}\",\n  \"is_pre_order\": false,\n  \"pre_order_release_date\": null\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/cms/products",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"cms",
+								"products"
+							]
+						},
+						"description": "Create a new product. Requires authentication."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Product",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"iPhone 15 Pro Max\",\n  \"description\": \"Latest iPhone with advanced features and larger screen\",\n  \"price\": 1199.99,\n  \"discount_price\": 1099.99,\n  \"stock_quantity\": 80,\n  \"category_id\": \"{{category_id}}\",\n  \"is_pre_order\": false,\n  \"pre_order_release_date\": null\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/cms/products/{{product_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"cms",
+								"products",
+								"{{product_id}}"
+							]
+						},
+						"description": "Update an existing product. Requires authentication."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Product",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/cms/products/{{product_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"cms",
+								"products",
+								"{{product_id}}"
+							]
+						},
+						"description": "Delete a product. Requires authentication."
+					},
+					"response": []
+				}
+			],
+			"description": "Product management endpoints"
+		},
+		{
+			"name": "Categories",
+			"item": [
+				{
+					"name": "Get All Categories",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/cms/categories?page=1&pageSize=10&search=&parentCategoryId=&includeSubCategories=true&includeProductsCount=true&sortBy=name&isAscending=true",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"cms",
+								"categories"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number (default: 1)"
+								},
+								{
+									"key": "pageSize",
+									"value": "10",
+									"description": "Page size (default: 10, max: 100)"
+								},
+								{
+									"key": "search",
+									"value": "",
+									"description": "Search term for category name or description"
+								},
+								{
+									"key": "parentCategoryId",
+									"value": "",
+									"description": "Filter by parent category ID (null for root categories)"
+								},
+								{
+									"key": "includeSubCategories",
+									"value": "true",
+									"description": "Include subcategories in response"
+								},
+								{
+									"key": "includeProductsCount",
+									"value": "true",
+									"description": "Include products count for each category"
+								},
+								{
+									"key": "sortBy",
+									"value": "name",
+									"description": "Sort field (name, createdAt, updatedAt)"
+								},
+								{
+									"key": "isAscending",
+									"value": "true",
+									"description": "Sort order (true for ascending)"
+								}
+							]
+						},
+						"description": "Get all categories with pagination, filtering, and sorting options"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Category by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/cms/categories/{{category_id}}?includeSubCategories=true&includeProductsCount=true",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"cms",
+								"categories",
+								"{{category_id}}"
+							],
+							"query": [
+								{
+									"key": "includeSubCategories",
+									"value": "true",
+									"description": "Include subcategories"
+								},
+								{
+									"key": "includeProductsCount",
+									"value": "true",
+									"description": "Include products count"
+								}
+							]
+						},
+						"description": "Get a specific category by its ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Category",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Save category ID to environment variable",
+									"if (pm.response.code === 201) {",
+									"    var responseJson = pm.response.json();",
+									"    if (responseJson.isSuccess && responseJson.data && responseJson.data.id) {",
+									"        pm.environment.set('category_id', responseJson.data.id);",
+									"        console.log('Category ID saved to environment: ' + responseJson.data.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Electronics\",\n  \"description\": \"Electronic devices and accessories\",\n  \"parent_category_id\": null,\n  \"image_path\": \"/images/categories/electronics.jpg\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/cms/categories",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"cms",
+								"categories"
+							]
+						},
+						"description": "Create a new category. Requires authentication."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Category",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Consumer Electronics\",\n  \"description\": \"Consumer electronic devices and smart accessories\",\n  \"parent_category_id\": null,\n  \"image_path\": \"/images/categories/consumer-electronics.jpg\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/cms/categories/{{category_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"cms",
+								"categories",
+								"{{category_id}}"
+							]
+						},
+						"description": "Update an existing category. Requires authentication."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Category",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/cms/categories/{{category_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"cms",
+								"categories",
+								"{{category_id}}"
+							]
+						},
+						"description": "Delete a category. Requires authentication."
+					},
+					"response": []
+				}
+			],
+			"description": "Category management endpoints"
+		},
+		{
+			"name": "Gateway Routes",
+			"item": [
+				{
+					"name": "Gateway Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{gateway_url}}/health",
+							"host": [
+								"{{gateway_url}}"
+							],
+							"path": [
+								"health"
+							]
+						},
+						"description": "Check Gateway health status"
+					},
+					"response": []
+				},
+				{
+					"name": "Auth Service Health",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{gateway_url}}/health/auth",
+							"host": [
+								"{{gateway_url}}"
+							],
+							"path": [
+								"health",
+								"auth"
+							]
+						},
+						"description": "Check AuthService health through Gateway"
+					},
+					"response": []
+				},
+				{
+					"name": "Product Service Health",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{gateway_url}}/health/products",
+							"host": [
+								"{{gateway_url}}"
+							],
+							"path": [
+								"health",
+								"products"
+							]
+						},
+						"description": "Check ProductService health through Gateway"
+					},
+					"response": []
+				}
+			],
+			"description": "Gateway routing and health check endpoints"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:5001",
+			"type": "string"
+		},
+		{
+			"key": "gateway_url",
+			"value": "http://localhost:5000",
+			"type": "string"
+		},
+		{
+			"key": "product_service_url",
+			"value": "http://localhost:5002",
+			"type": "string"
+		}
+	]
+}
