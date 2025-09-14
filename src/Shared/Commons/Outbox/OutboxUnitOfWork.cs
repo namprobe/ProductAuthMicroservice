@@ -26,9 +26,13 @@ public class OutboxUnitOfWork : UnitOfWork, IOutboxUnitOfWork
             //1. Init new outbox event
             var outboxEvent = new OutboxEvent
             {
-                EventType = @event.GetType().Name,
+                EventType = @event.GetType().AssemblyQualifiedName!, // Use full assembly qualified name
                 AggregateId = @event.Id,
-                EventData = JsonSerializer.Serialize(@event),
+                EventData = JsonSerializer.Serialize(@event, new JsonSerializerOptions
+                {
+                    WriteIndented = false,
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                }),
                 Status = Enums.EntityStatusEnum.Active
             };
 
@@ -108,7 +112,8 @@ public class OutboxUnitOfWork : UnitOfWork, IOutboxUnitOfWork
         var strategy = _context.Database.CreateExecutionStrategy();
         await strategy.ExecuteAsync(async () =>
         {
-            await BeginTransactionAsync(cancellationToken);
+            // Start a new transaction inside the execution strategy
+            using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
@@ -118,12 +123,13 @@ public class OutboxUnitOfWork : UnitOfWork, IOutboxUnitOfWork
                 // Publish events after successful save
                 await PublishPendingEventsAsync();
 
-                await CommitTransactionAsync(cancellationToken);
+                // Commit the transaction
+                await transaction.CommitAsync(cancellationToken);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to save changes with outbox events");
-                await RollbackTransactionAsync(cancellationToken);
+                await transaction.RollbackAsync(cancellationToken);
                 throw;
             }
         });
@@ -135,20 +141,35 @@ public class OutboxUnitOfWork : UnitOfWork, IOutboxUnitOfWork
         {
             try
             {
+                _logger.LogInformation("Publishing outbox event {EventId} of type {EventType}", outboxEvent.Id, outboxEvent.EventType);
+                
                 var eventType = Type.GetType(outboxEvent.EventType);
                 if (eventType != null)
                 {
-                    var @event = JsonSerializer.Deserialize(outboxEvent.EventData, eventType);
+                    var @event = JsonSerializer.Deserialize(outboxEvent.EventData, eventType, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
                     if (@event is IntegrationEvent integrationEvent)
                     {
+                        _logger.LogInformation("Publishing event {EventId} to RabbitMQ", integrationEvent.Id);
                         await _eventBus.PublishAsync(integrationEvent);
                         await MarkEventAsProcessedAsync(outboxEvent.Id);
+                        _logger.LogInformation("Successfully published and marked event {EventId} as processed", outboxEvent.Id);
                     }
+                    else
+                    {
+                        _logger.LogWarning("Deserialized event {EventId} is not an IntegrationEvent", outboxEvent.Id);
+                    }
+                }
+                else
+                {
+                    _logger.LogError("Could not resolve event type {EventType} for event {EventId}", outboxEvent.EventType, outboxEvent.Id);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to publish outbox event {EventId}", outboxEvent.Id);
+                _logger.LogError(ex, "Failed to publish outbox event {EventId} of type {EventType}", outboxEvent.Id, outboxEvent.EventType);
                 await MarkEventAsFailedAsync(outboxEvent.Id, ex.Message);
             }
         }

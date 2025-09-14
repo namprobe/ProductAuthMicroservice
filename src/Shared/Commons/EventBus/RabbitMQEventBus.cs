@@ -177,7 +177,17 @@ public class RabbitMQEventBus : IEventBus, IDisposable
 
         channel.ExchangeDeclareAsync(exchange: _config.ExchangeName, type: ExchangeType.Direct);
 
-        var queueDeclareResult = channel.QueueDeclareAsync().GetAwaiter().GetResult();
+        // Use configured queue name or generate service-specific name
+        _queueName = !string.IsNullOrEmpty(_config.QueueName) 
+            ? _config.QueueName 
+            : $"{Environment.GetEnvironmentVariable("SERVICE_NAME") ?? "unknown"}_queue";
+
+        var queueDeclareResult = channel.QueueDeclareAsync(
+            queue: _queueName,
+            durable: true,
+            exclusive: false,
+            autoDelete: false).GetAwaiter().GetResult();
+
         _queueName = queueDeclareResult.QueueName;
 
         channel.CallbackExceptionAsync += (sender, ea) =>
@@ -208,34 +218,75 @@ public class RabbitMQEventBus : IEventBus, IDisposable
 
     private async Task ProcessEvent(string eventName, string message)
     {
-        _logger.LogTrace("Processing RabbitMQ event: {EventName}", eventName);
+        _logger.LogInformation("Processing RabbitMQ event: {EventName}", eventName);
+        _logger.LogDebug("Event message: {Message}", message);
 
         if (_handlers.ContainsKey(eventName))
         {
+            _logger.LogInformation("Found {HandlerCount} handlers for event {EventName}", _handlers[eventName].Count, eventName);
+            
             using var scope = _serviceProvider.CreateScope();
             var subscriptions = _handlers[eventName];
 
             foreach (var subscription in subscriptions)
             {
-                var handler = scope.ServiceProvider.GetService(subscription);
-                if (handler == null) continue;
-
-                var eventType = _eventTypes.SingleOrDefault(t => t.Name == eventName);
-                if (eventType == null) continue;
-
-                var integrationEvent = JsonSerializer.Deserialize(message, eventType, new JsonSerializerOptions
+                try
                 {
-                    PropertyNameCaseInsensitive = true
-                });
+                    _logger.LogInformation("Processing event {EventName} with handler {HandlerType}", eventName, subscription.Name);
+                    
+                    var eventType = _eventTypes.SingleOrDefault(t => t.Name == eventName);
+                    if (eventType == null) 
+                    {
+                        _logger.LogWarning("Event type {EventName} not found in registered types", eventName);
+                        continue;
+                    }
 
-                var concreteType = typeof(IIntegrationEventHandler<>).MakeGenericType(eventType);
-                await Task.Yield();
-                await (Task)concreteType.GetMethod("Handle")!.Invoke(handler, new[] { integrationEvent, CancellationToken.None })!;
+                    // Create the interface type to look up the handler
+                    var handlerInterface = typeof(IIntegrationEventHandler<>).MakeGenericType(eventType);
+                    var handler = scope.ServiceProvider.GetService(handlerInterface);
+                    if (handler == null) 
+                    {
+                        _logger.LogWarning("Handler {HandlerInterface} not found in DI container", handlerInterface.Name);
+                        continue;
+                    }
+
+                    _logger.LogInformation("Deserializing event {EventName} to type {EventType}", eventName, eventType.FullName);
+                    
+                    var integrationEvent = JsonSerializer.Deserialize(message, eventType, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+
+                    if (integrationEvent == null)
+                    {
+                        _logger.LogWarning("Failed to deserialize event {EventName}", eventName);
+                        continue;
+                    }
+
+                    _logger.LogInformation("Successfully deserialized event {EventName}, invoking handler", eventName);
+
+                    // Cast handler to the interface and call Handle method
+                    var handlerMethod = handlerInterface.GetMethod("Handle");
+                    if (handlerMethod != null)
+                    {
+                        await (Task)handlerMethod.Invoke(handler, new[] { integrationEvent, CancellationToken.None })!;
+                        _logger.LogInformation("Successfully processed event {EventName} with handler {HandlerType}", eventName, subscription.Name);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Handle method not found on handler {HandlerInterface}", handlerInterface.Name);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error processing event {EventName} with handler {HandlerType}", eventName, subscription.Name);
+                }
             }
         }
         else
         {
-            _logger.LogWarning("No subscription for RabbitMQ event: {EventName}", eventName);
+            _logger.LogWarning("No subscription for RabbitMQ event: {EventName}. Available handlers: {AvailableHandlers}", 
+                eventName, string.Join(", ", _handlers.Keys));
         }
     }
 

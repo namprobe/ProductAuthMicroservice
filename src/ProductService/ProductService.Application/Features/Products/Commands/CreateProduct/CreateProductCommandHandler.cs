@@ -90,8 +90,6 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
             
             try
             {
-                await _unitOfWork.BeginTransactionAsync(cancellationToken);
-                
                 product.InitializeEntity(userId);
                 await _unitOfWork.Repository<Product>().AddAsync(product);
 
@@ -112,13 +110,12 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
                 // 8. Add Outbox Event (Same Transaction)
                 await _unitOfWork.AddOutboxEventAsync(productCreatedEvent);
 
-                // 9. Commit transaction with outbox
+                // 9. Save changes with outbox (handles transaction internally)
                 await _unitOfWork.SaveChangesWithOutboxAsync(cancellationToken);
-                await _unitOfWork.CommitTransactionAsync(cancellationToken);
             }
-            catch
+            catch (Exception ex)
             {
-                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                _logger.LogError(ex, "Error creating product: {ProductName}", command.Request.Name);
                 throw;
             }
 
