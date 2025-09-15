@@ -4,6 +4,7 @@ using ProductAuthMicroservice.Commons.Entities;
 using ProductAuthMicroservice.Commons.Enums;
 using ProductAuthMicroservice.Commons.Models;
 using ProductAuthMicroservice.Commons.Outbox;
+using ProductAuthMicroservice.Commons.Services;
 using ProductAuthMicroservice.ProductService.Domain.Entities;
 using ProductAuthMicroservice.Shared.Contracts.Events;
 
@@ -12,13 +13,16 @@ namespace ProductAuthMicroservice.ProductService.Application.Features.Categories
 public class DeleteCategoryCommandHandler : IRequestHandler<DeleteCategoryCommand, Result>
 {
     private readonly IOutboxUnitOfWork _unitOfWork;
+    private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<DeleteCategoryCommandHandler> _logger;
 
     public DeleteCategoryCommandHandler(
         IOutboxUnitOfWork unitOfWork,
+        ICurrentUserService currentUserService,
         ILogger<DeleteCategoryCommandHandler> logger)
     {
         _unitOfWork = unitOfWork;
+        _currentUserService = currentUserService;
         _logger = logger;
     }
 
@@ -58,7 +62,7 @@ public class DeleteCategoryCommandHandler : IRequestHandler<DeleteCategoryComman
             }
 
             // 4. Soft delete the category
-            category.SoftDeleteEnitity();
+            category.SoftDeleteEnitity(Guid.Parse(_currentUserService.UserId??Guid.Empty.ToString()));
 
             // 5. Update repository
             _unitOfWork.Repository<Category>().Update(category);

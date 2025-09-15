@@ -5,6 +5,7 @@ using ProductAuthMicroservice.Commons.Entities;
 using ProductAuthMicroservice.Commons.Enums;
 using ProductAuthMicroservice.Commons.Models;
 using ProductAuthMicroservice.Commons.Outbox;
+using ProductAuthMicroservice.Commons.Services;
 using ProductAuthMicroservice.ProductService.Application.Features.ProductInventories.DTOs;
 using ProductAuthMicroservice.ProductService.Domain.Entities;
 using ProductAuthMicroservice.Shared.Contracts.Events;
@@ -15,16 +16,19 @@ public class CreateProductInventoryCommandHandler : IRequestHandler<CreateProduc
 {
     private readonly IOutboxUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<CreateProductInventoryCommandHandler> _logger;
 
     public CreateProductInventoryCommandHandler(
         IOutboxUnitOfWork unitOfWork,
         IMapper mapper,
+        ICurrentUserService currentUserService,
         ILogger<CreateProductInventoryCommandHandler> logger)
     {
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _logger = logger;
+        _currentUserService = currentUserService;
     }
 
     public async Task<Result<ProductInventoryResponseDto>> Handle(CreateProductInventoryCommand request, CancellationToken cancellationToken)
@@ -52,7 +56,7 @@ public class CreateProductInventoryCommandHandler : IRequestHandler<CreateProduc
                 Status = EntityStatusEnum.Active
             };
 
-            inventory.InitializeEntity();
+            inventory.InitializeEntity(Guid.Parse(_currentUserService.UserId??Guid.Empty.ToString()));
 
             // 3. Update Product's total stock quantity
             product.StockQuantity += request.Quantity;

@@ -5,6 +5,7 @@ using ProductAuthMicroservice.Commons.Entities;
 using ProductAuthMicroservice.Commons.Enums;
 using ProductAuthMicroservice.Commons.Models;
 using ProductAuthMicroservice.Commons.Outbox;
+using ProductAuthMicroservice.Commons.Services;
 using ProductAuthMicroservice.ProductService.Application.Features.Products.DTOs;
 using ProductAuthMicroservice.ProductService.Domain.Entities;
 using ProductAuthMicroservice.Shared.Contracts.Events;
@@ -16,15 +17,18 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
     private readonly IOutboxUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<UpdateProductCommandHandler> _logger;
+    private readonly ICurrentUserService _currentUserService;
 
     public UpdateProductCommandHandler(
         IOutboxUnitOfWork unitOfWork,
         IMapper mapper,
-        ILogger<UpdateProductCommandHandler> logger)
+        ILogger<UpdateProductCommandHandler> logger,
+        ICurrentUserService currentUserService)
     {
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _logger = logger;
+        _currentUserService = currentUserService;
     }
 
     public async Task<Result<ProductResponseDto>> Handle(UpdateProductCommand request, CancellationToken cancellationToken)
@@ -74,7 +78,9 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
             product.IsPreOrder = request.Request.IsPreOrder;
             product.PreOrderReleaseDate = request.Request.PreOrderReleaseDate;
 
-            product.UpdateEntity();
+            // Get current user ID for audit tracking
+            var currentUserId = Guid.TryParse(_currentUserService.UserId, out var userId) ? userId : (Guid?)null;
+            product.UpdateEntity(currentUserId);
 
             // 5. Update repository
             _unitOfWork.Repository<Product>().Update(product);

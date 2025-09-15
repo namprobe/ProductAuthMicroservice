@@ -5,6 +5,7 @@ using ProductAuthMicroservice.Commons.Entities;
 using ProductAuthMicroservice.Commons.Enums;
 using ProductAuthMicroservice.Commons.Models;
 using ProductAuthMicroservice.Commons.Outbox;
+using ProductAuthMicroservice.Commons.Services;
 using ProductAuthMicroservice.ProductService.Application.Features.Categories.DTOs;
 using ProductAuthMicroservice.ProductService.Domain.Entities;
 using ProductAuthMicroservice.Shared.Contracts.Events;
@@ -15,15 +16,18 @@ public class CreateCategoryCommandHandler : IRequestHandler<CreateCategoryComman
 {
     private readonly IOutboxUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<CreateCategoryCommandHandler> _logger;
 
     public CreateCategoryCommandHandler(
         IOutboxUnitOfWork unitOfWork,
         IMapper mapper,
+        ICurrentUserService currentUserService,
         ILogger<CreateCategoryCommandHandler> logger)
     {
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _currentUserService = currentUserService;
         _logger = logger;
     }
 
@@ -70,7 +74,7 @@ public class CreateCategoryCommandHandler : IRequestHandler<CreateCategoryComman
                 Status = EntityStatusEnum.Active
             };
 
-            category.InitializeEntity();
+            category.InitializeEntity(Guid.Parse(_currentUserService.UserId??Guid.Empty.ToString()));
 
             // 4. Add to repository
             await _unitOfWork.Repository<Category>().AddAsync(category);

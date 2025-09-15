@@ -41,7 +41,7 @@ public class ProductCreatedEventHandler : IIntegrationEventHandler<ProductCreate
                 Status = EntityStatusEnum.Active
             };
 
-            userAction.InitializeEntity();
+            userAction.InitializeEntity(@event.CreatedBy);
 
             // Add to repository
             await _unitOfWork.Repository<UserAction>().AddAsync(userAction);

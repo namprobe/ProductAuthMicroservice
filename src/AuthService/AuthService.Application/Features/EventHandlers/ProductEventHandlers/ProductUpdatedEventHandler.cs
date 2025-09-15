@@ -30,6 +30,24 @@ public class ProductUpdatedEventHandler : IIntegrationEventHandler<ProductUpdate
         {
             _logger.LogInformation("Handling ProductUpdatedEvent: {ProductId}", @event.ProductId);
 
+            // Check if user exists - skip if UpdatedBy is Guid.Empty or user doesn't exist
+            if (@event.UpdatedBy == Guid.Empty)
+            {
+                _logger.LogWarning("ProductUpdatedEvent for {ProductId} has empty UpdatedBy. Skipping UserAction creation.", @event.ProductId);
+                return;
+            }
+
+            // Verify user exists in the system before creating UserAction
+            var userExists = await _unitOfWork.Repository<AppUser>()
+                .GetFirstOrDefaultAsync(u => u.Id == @event.UpdatedBy);
+
+            if (userExists == null)
+            {
+                _logger.LogWarning("User {UserId} not found for ProductUpdatedEvent {ProductId}. Skipping UserAction creation.", 
+                    @event.UpdatedBy, @event.ProductId);
+                return;
+            }
+
             // Build change summary
             var changesSummary = @event.Changes.Any() 
                 ? string.Join(", ", @event.Changes.Select(kv => $"{kv.Key}: {kv.Value.OldValue} → {kv.Value.NewValue}"))
@@ -48,7 +66,7 @@ public class ProductUpdatedEventHandler : IIntegrationEventHandler<ProductUpdate
                 Status = EntityStatusEnum.Active
             };
 
-            userAction.InitializeEntity();
+            userAction.InitializeEntity(@event.ProductId);
 
             // Add to repository
             await _unitOfWork.Repository<UserAction>().AddAsync(userAction);

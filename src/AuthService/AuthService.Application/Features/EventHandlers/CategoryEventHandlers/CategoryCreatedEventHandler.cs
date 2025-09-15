@@ -47,7 +47,7 @@ public class CategoryCreatedEventHandler : IIntegrationEventHandler<CategoryCrea
                 Status = EntityStatusEnum.Active
             };
 
-            userAction.InitializeEntity();
+            userAction.InitializeEntity(@event.CreatedBy);
             await _unitOfWork.Repository<UserAction>().AddAsync(userAction);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 

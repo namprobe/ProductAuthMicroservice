@@ -8,6 +8,7 @@ using ProductAuthMicroservice.ProductService.Application.Features.Categories.DTO
 using ProductAuthMicroservice.ProductService.Domain.Entities;
 using ProductAuthMicroservice.Shared.Contracts.Events;
 using ProductAuthMicroservice.Commons.Enums;
+using ProductAuthMicroservice.Commons.Services;
 
 namespace ProductAuthMicroservice.ProductService.Application.Features.Categories.Commands.UpdateCategory;
 
@@ -15,15 +16,18 @@ public class UpdateCategoryCommandHandler : IRequestHandler<UpdateCategoryComman
 {
     private readonly IOutboxUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+        private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<UpdateCategoryCommandHandler> _logger;
 
     public UpdateCategoryCommandHandler(
         IOutboxUnitOfWork unitOfWork,
         IMapper mapper,
+        ICurrentUserService currentUserService,
         ILogger<UpdateCategoryCommandHandler> logger)
     {
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _currentUserService = currentUserService;
         _logger = logger;
     }
 
@@ -101,7 +105,7 @@ public class UpdateCategoryCommandHandler : IRequestHandler<UpdateCategoryComman
             category.Description = request.Description;
             category.ParentCategoryId = request.ParentCategoryId;
             category.ImagePath = request.ImagePath;
-            category.UpdateEntity();
+            category.UpdateEntity(Guid.Parse(_currentUserService.UserId??Guid.Empty.ToString()));
 
             // 6. Create change tracking
             var changes = new Dictionary<string, ChangeInfo>();
